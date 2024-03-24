@@ -1,4 +1,14 @@
 #!/usr/bin/env python3
+doggy = """
+    __    __
+    \/----\/
+     \0  0/    WOOF!
+     _\  /_
+   _|  \/  |_
+  | | |  | | |
+ _| | |  | | |_
+"---|_|--|_|---"
+"""
 import os
 import sys
 import time
@@ -107,4 +117,5 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--interface", help="Interface for reconnaissance (default: system's local IP)")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose mode for more chaos")
     args = parser.parse_args()
+    print(doggy)
     main(args)
