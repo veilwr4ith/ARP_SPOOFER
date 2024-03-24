@@ -10,7 +10,7 @@ This simple Python script facilitates ARP spoofing attacks on local networks. AR
 ## Usage
 
 ```bash
-./arp_spoof.py victim_ip router_ip [-i INTERFACE] [-v]
+sudo python3 woofer.py victim_ip router_ip [-i INTERFACE] [-v]
 ```
 
 **Feel free to further customize the content according to your preferences and requirements.**
@@ -25,5 +25,5 @@ This simple Python script facilitates ARP spoofing attacks on local networks. AR
 **Use Responsibly**: This script is provided for educational and testing purposes only. Always use it responsibly and ethically, respecting the privacy and security of others. Never use this tool for malicious purposes or without explicit permission from network owners.
 
 ## Disclaimer
-This script is provided as-is and without warranty. The authors and contributors disclaim all liability for any damages or misuse resulting from the use of this tool. By using this script, you agree to these terms and assume full responsibility for your actions.
+This script is provided as-is and without warranty. The author disclaim all liability for any damages or misuse resulting from the use of this tool. By using this script, you agree to these terms and assume full responsibility for your actions.
 
