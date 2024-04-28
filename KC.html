@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supportive Survey</title>
+  <style>
+    /* CSS for survey */
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .question {
+      text-align: center;
+      font-size: 24px;
+      font-family: Candara, Oswald;
+      margin-bottom: 20px;
+      animation: fadeIn 1s ease-out;
+    }
+
+    @keyframes fadeIn {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+
+    /* Additional CSS for buttons */
+    .button-container {
+      display: flex;
+      justify-content: center;
+    }
+
+    .button-container button {
+      font-size: 18px;
+      padding: 10px 20px;
+      margin: 0 10px;
+      border-radius: 20px;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.3s;
+    }
+
+    .button-container button:hover {
+      transform: scale(1.1);
+    }
+
+    /* CSS for GIF and text */
+    .gif-container {
+      text-align: center;
+      position: relative;
+    }
+
+    .gif-text {
+      position: absolute;
+      bottom: 10px; /* Adjust as needed */
+      left: 50%;
+      transform: translateX(-50%);
+      color: white; /* Example text color */
+      font-size: 40px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Initial question -->
+  <div class="question" id="question">
+    <p>I know you're tired, give yourself some time to rest, okay? 😊</p>
+    <div class="button-container">
+      <button id="okButton">OK</button>
+    </div>
+  </div>
+
+  <!-- Script for button actions and changing questions -->
+  <script>
+    const questions = [
+      { question: "I know you're tired, give yourself some time to rest, okay?", emoji: "😊"},
+      { question: "Be strong, okay?", emoji: "💪" },
+      { question: "I'm always here for you.", emoji: "😊" },
+      { question: "I want to be your crying shoulder when you want to release your anger and frustrations.", emoji: "😢" },
+      { question: "If you think no one can understand you, I'm here. I'll do my best to make you feel loved and comfortable.", emoji: "❤️" },
+      { question: "You'll never be alone again.", emoji: "🌟" },
+      { question: "I'm with you. Always.", emoji: "🤗" }
+    ];
+
+    let currentQuestionIndex = 0;
+    const questionDiv = document.getElementById('question');
+
+    // Function to change the question
+    function changeQuestion() {
+      if (currentQuestionIndex < questions.length) {
+        const currentQuestion = questions[currentQuestionIndex];
+        questionDiv.innerHTML = `
+          <p>${currentQuestion.question} ${currentQuestion.emoji}</p>
+          <div class="button-container">
+            <button id="okButton">OK</button>
+          </div>
+        `;
+        addEventListenerToOkButton();
+        currentQuestionIndex++;
+      } else {
+        questionDiv.innerHTML = `
+          <div class="gif-container">
+            <img src="https://media2.giphy.com/media/c76IJLufpNwSULPk77/giphy.webp?cid=790b7611x2e2in5bozmcippducwseyb0ze9a56f63ojq4c87&ep=v1_gifs_search&rid=giphy.webp&ct=g" alt="Love GIF">
+            <p class="gif-text">I WUV YOU!!!!</p>
+          </div>
+        `;
+      }
+    }
+
+    // Function to add event listener to the OK button
+    function addEventListenerToOkButton() {
+      const okButton = document.getElementById('okButton');
+      okButton.addEventListener('click', changeQuestion);
+    }
+
+    // Initial event listeners setup
+    changeQuestion();
+  </script>
+</body>
+</html>
